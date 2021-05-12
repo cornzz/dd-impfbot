@@ -7,7 +7,7 @@ import requests
 from telegram.ext import Updater, CommandHandler, JobQueue
 
 TOKEN = os.getenv('BOT_TOKEN')
-URL = 'https://countee-impfee.b-cdn.net/api/1.1/de/counters/getAll/_iz_sachsen?cached=impfee'
+URL = 'https://countee-impfee.b-cdn.net/api/1.1/de/counters/getAll/_iz_sachsen'
 INTERVAL = 180
 CITIES = ['Dresden IZ', 'Pirna IZ']
 CITIES_AVL = []
