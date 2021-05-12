@@ -5,6 +5,7 @@ Python based Telegram bot that sends notifications when there are available vacc
 How to use
 ===
 Requires python and virtualenv to be installed.
+Rename `bot.env.default` to `bot.env`, add bot token and user name.
 
 ```
 git clone https://github.com/cornzz/dd-impfbot.git
@@ -12,6 +13,6 @@ cd dd-impfbot
 python -m venv venv
 source venv/bin/activate
 pip install -r reqs.txt
-export BOT_TOKEN yourtoken
+source bot.env
 python bot.py
 ```
