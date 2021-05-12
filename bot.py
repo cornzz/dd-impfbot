@@ -8,7 +8,7 @@ from telegram.ext import Updater, CommandHandler, JobQueue
 
 TOKEN = os.getenv('BOT_TOKEN')
 URL = 'https://countee-impfee.b-cdn.net/api/1.1/de/counters/getAll/_iz_sachsen?cached=impfee'
-INTERVAL = 300
+INTERVAL = 180
 CITIES = ['Dresden IZ', 'Pirna IZ']
 CITIES_AVL = []
 CHATS = []
@@ -22,7 +22,7 @@ def start(update, context):
 	else:
 		log(f'Adding chat {chat_id}.')
 		CHATS.append(chat_id)
-		update.message.reply_text(f'Tracking locations: {", ".join(CITIES)}. Interval: {INTERVAL} seconds')
+		update.message.reply_text(f'Tracking locations: {", ".join(CITIES)}. Interval: {INTERVAL} seconds.')
 
 
 def stop(update, context):

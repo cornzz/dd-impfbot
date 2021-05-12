@@ -10,7 +10,8 @@ Requires python and virtualenv to be installed.
 git clone https://github.com/cornzz/dd-impfbot.git
 cd dd-impfbot
 python -m venv venv
-source venv/Scripts/activate
+source venv/bin/activate
 pip install -r reqs.txt
+export BOT_TOKEN yourtoken
 python bot.py
 ```
