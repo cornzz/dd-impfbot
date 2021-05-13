@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 import requests
 from telegram.ext import Updater, CommandHandler, JobQueue, Filters
+from telegram.error import ChatMigrated
 
 TOKEN = os.getenv('BOT_TOKEN')
 USER = os.getenv('TG_USER')
@@ -31,13 +32,13 @@ def start(update, context):
 def stop(update, context):
 	chat_id = update.message.chat.id
 
-	if chat_id in CHATS:
+	if chat_id not in CHATS:
+		update.message.reply_text('Not running.')
+	else:
 		log(f'Removing chat {chat_id}.')
 		CHATS.remove(chat_id)
 		backup()
-		update.message.reply_text('Stopped.')
-	else:
-		update.message.reply_text('Not running.')
+		update.message.reply_text('Stopped tracking.')
 
 
 def active_chats(update, context):
@@ -47,7 +48,6 @@ def active_chats(update, context):
 def shutdown(update, context):
 	log('Shutdown command issued.')
 	update.message.reply_text('Shutting down...')
-	backup()
 	os.kill(os.getpid(), signal.SIGINT)
 
 
@@ -58,12 +58,20 @@ def backup():
 
 def send_message(context, message):
 	log(f'Sending message "{message.splitlines()[0]}" to chats {CHATS}')
-	for chat in CHATS:
+	for chat in CHATS.copy():
 		try:
 			context.bot.sendMessage(chat, message)
+		except ChatMigrated as e:
+			new_id = e.new_chat_id
+			log(f'Chat {chat} migrated to supergroup. Updating id to {new_id} and sending again...')
+			CHATS.remove(chat)
+			CHATS.append(new_id)
+			backup()
+			context.bot.sendMessage(new_id, message)
 		except:
 			log(f'Error sending message to chat {chat}, removing chat id...')
-			CHATS.remove(chat_id)
+			CHATS.remove(chat)
+			backup()
 
 
 def check(context):
@@ -94,7 +102,7 @@ def log(message):
 
 def main():
 	global CHATS, CITIES_AVL
-	log('Starting bot...')
+	log(f'Starting bot... Token: {TOKEN}')
 
 	if os.path.exists('chat_ids'):
 		with open('chat_ids', 'rb') as chat_ids:
