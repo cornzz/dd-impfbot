@@ -15,14 +15,17 @@ USER = os.getenv('TG_USER')
 URL = 'https://countee-impfee.b-cdn.net/api/1.1/de/counters/getAll/_iz_sachsen'
 INTERVAL = 180
 STD_LIMIT = 5
-ALL_CITIES = ['Annaberg IZ', 'Belgern IZ', 'Borna IZ', 'Chemnitz IZ', 'Dresden IZ', 'Eich IZ', 'Grimma TIZ', 'Kamenz IZ', 'Leipzig Messe IZ', 'Löbau IZ', 'Mittweida IZ', 'Pirna IZ', 'Plauen TIZ', 'Riesa IZ', 'Zwickau IZ']
-CITIES = ['Dresden IZ', 'Pirna IZ']
+CITIES = ['Annaberg IZ', 'Belgern IZ', 'Borna IZ', 'Chemnitz IZ', 'Dresden IZ', 'Eich IZ', 'Grimma TIZ', 'Kamenz IZ', 'Leipzig Messe IZ', 'Löbau IZ', 'Mittweida IZ', 'Pirna IZ', 'Plauen TIZ', 'Riesa IZ', 'Zwickau IZ']
+STD_CITIES = set(['Dresden IZ', 'Pirna IZ'])
 CITIES_AVL = []
 CHATS = {}
 CHATS_WTG = {city: [] for city in CITIES}
 COMMANDS = '/start - Start receiving notifications when appointments become available.\n'\
 			'/stop - Stop receiving notifications.\n'\
 			'/setlimit - Set minimum number of appointments required for you to be notified.\n'\
+			'/locations - See currently tracked locations.\n'\
+			'/addlocation <city> - Add location to tracking.\n'\
+			'/removelocation <city> - Remove location from tracking.\n'\
 			'/help - Get a list of available commands.'
 
 
@@ -37,10 +40,10 @@ def start(update, context):
 		update.message.reply_text('Already started.')
 	else:
 		log(f'Adding chat {chat}.')
-		CHATS[chat] = STD_LIMIT
+		CHATS[chat] = [STD_LIMIT, STD_CITIES.copy()]
 		persist()
 		update.message.reply_text(
-			f'Tracking locations: {", ".join(CITIES)}. Interval: {INTERVAL} seconds.\n'\
+			f'Tracking locations: {", ".join(STD_CITIES)}. Interval: {INTERVAL} seconds.\n'\
 			f'Notification limit: min. {STD_LIMIT} appointments. Use /setlimit to change.\n'\
 			'Use /stop to stop receiving notifications.\n'
 			'Send /help for more commands.')
@@ -67,20 +70,57 @@ def set_limit(update, context):
 			if limit < 1:
 				raise ValueError
 			log(f'Setting limit of chat {chat} to {limit}.')
-			CHATS[chat] = limit
+			CHATS[chat][0] = limit
 			persist()
 			update.message.reply_text(f'Set limit to {limit}.')
 		except (IndexError, ValueError):
 			update.message.reply_text('Invalid limit.')
 
 
+def locations(update, context):
+	chat = update.message.chat.id
+
+	if chat in CHATS:
+		update.message.reply_text(f'Tracking locations {", ".join(CHATS[chat][1])}.')
+
+
+def add_location(update, context):
+	chat = update.message.chat.id
+
+	if chat in CHATS:
+		city = [x for x in CITIES if x.lower().startswith(context.args[0].lower())]
+		if city:
+			log(f'Adding location {city} to chat {chat}.')
+			CHATS[chat][1].add(city[0])
+			persist()
+			update.message.reply_text(f'Tracking locations {", ".join(CHATS[chat][1])}.')
+		else:
+			update.message.reply_text('Invalid location.')
+
+
+def remove_location(update, context):
+	chat = update.message.chat.id
+
+	if chat in CHATS:
+		city = [x for x in CITIES if x.lower().startswith(context.args[0].lower())]
+		if city and city[0] in CHATS[chat][1]:
+			log(f'Removing location {city} from chat {chat}.')
+			CHATS[chat][1].remove(city[0])
+			persist()
+			update.message.reply_text(f'Tracking locations {", ".join(CHATS[chat][1])}.')
+		else:
+			update.message.reply_text('Invalid location.')
+
+
+
 def active_chats(update, context):
-	update.message.reply_text(f'Active chats: {CHATS}')
+	update.message.reply_text(f'Active chats: {list(CHATS)}')
 
 
 def shutdown(update, context):
 	log('Shutdown command issued.')
 	update.message.reply_text('Shutting down...')
+	persist()
 	os.kill(os.getpid(), signal.SIGINT)
 
 
@@ -90,12 +130,12 @@ def persist():
 
 
 def broadcast(context, message, city, count):
-	log(f'Sending message "{message.splitlines()[0]}" to chats {CHATS}')
-	for chat, limit in CHATS.copy().items():
-		if count >= limit or count == 0 and chat in CHATS_WTG[city]:
+	for chat, settings in CHATS.copy().items():
+		if count >= settings[0] and city in settings[1] or chat in CHATS_WTG[city] and count == 0:
 			try:
 				if count == 0:
 					CHATS_WTG[city].remove(chat)
+				log(f'Sending message "{message.splitlines()[0]}" to chat {chat}')
 				context.bot.sendMessage(chat, message)
 				if count != 0:
 					CHATS_WTG[city].append(chat)
@@ -103,7 +143,7 @@ def broadcast(context, message, city, count):
 				new_id = e.new_chat_id
 				log(f'Chat {chat} migrated to supergroup. Updating id to {new_id} and sending again...')
 				del CHATS[chat]
-				CHATS[new_id] = limit
+				CHATS[new_id] = settings
 				persist()
 				context.bot.sendMessage(new_id, message)
 				if count != 0:
@@ -149,7 +189,7 @@ def log(message):
 
 
 def main():
-	global CHATS
+	global CITIES_AVL, CHATS, CHATS_WTG
 
 	log(f'Starting bot... Token: {TOKEN}')
 
@@ -165,6 +205,9 @@ def main():
 	dp.add_handler(CommandHandler('start', start, ~Filters.update.edited_message))
 	dp.add_handler(CommandHandler('stop', stop, ~Filters.update.edited_message))
 	dp.add_handler(CommandHandler('setlimit', set_limit, ~Filters.update.edited_message))
+	dp.add_handler(CommandHandler('locations', locations, ~Filters.update.edited_message))
+	dp.add_handler(CommandHandler('addlocation', add_location, ~Filters.update.edited_message))
+	dp.add_handler(CommandHandler('removelocation', remove_location, ~Filters.update.edited_message))
 	dp.add_handler(CommandHandler('activechats', active_chats, Filters.user(username=USER)))
 	dp.add_handler(CommandHandler('shutdown', shutdown, Filters.user(username=USER)))
 	dp.add_error_handler(error)
