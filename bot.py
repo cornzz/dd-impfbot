@@ -22,7 +22,7 @@ CHATS = {}
 CHATS_WTG = {city: [] for city in CITIES}
 COMMANDS = '/start - Start receiving notifications when appointments become available.\n'\
 			'/stop - Stop receiving notifications.\n'\
-			'/setlimit - Set minimum number of appointments required for you to be notified.\n'\
+			'/setlimit <limit> - Set minimum number of appointments required for you to be notified.\n'\
 			'/locations - See currently tracked locations.\n'\
 			'/addlocation <city> - Add location to tracking.\n'\
 			'/removelocation <city> - Remove location from tracking.\n'\
@@ -45,7 +45,7 @@ def start(update, context):
 		update.message.reply_text(
 			f'Tracking locations: {", ".join(STD_CITIES)}. Interval: {INTERVAL} seconds.\n'\
 			f'Notification limit: min. {STD_LIMIT} appointments. Use /setlimit to change.\n'\
-			'Use /stop to stop receiving notifications.\n'
+			'Send /stop to stop receiving notifications.\n'
 			'Send /help for more commands.')
 
 
@@ -88,13 +88,13 @@ def add_location(update, context):
 	chat = update.message.chat.id
 
 	if chat in CHATS:
-		city = [x for x in CITIES if x.lower().startswith(context.args[0].lower())]
-		if city:
-			log(f'Adding location {city} to chat {chat}.')
+		try:
+			city = [x for x in CITIES if x.lower().startswith(context.args[0].lower())]
+			log(f'Adding location {city[0]} to chat {chat}.')
 			CHATS[chat][1].add(city[0])
 			persist()
 			update.message.reply_text(f'Tracking locations {", ".join(CHATS[chat][1])}.')
-		else:
+		except IndexError:
 			update.message.reply_text('Invalid location.')
 
 
@@ -102,13 +102,14 @@ def remove_location(update, context):
 	chat = update.message.chat.id
 
 	if chat in CHATS:
-		city = [x for x in CITIES if x.lower().startswith(context.args[0].lower())]
-		if city and city[0] in CHATS[chat][1]:
-			log(f'Removing location {city} from chat {chat}.')
-			CHATS[chat][1].remove(city[0])
-			persist()
-			update.message.reply_text(f'Tracking locations {", ".join(CHATS[chat][1])}.')
-		else:
+		try:
+			city = [x for x in CITIES if x.lower().startswith(context.args[0].lower())]
+			if city[0] in CHATS[chat][1]:
+				log(f'Removing location {city[0]} from chat {chat}.')
+				CHATS[chat][1].remove(city[0])
+				persist()
+				update.message.reply_text(f'Tracking locations {", ".join(CHATS[chat][1])}.')
+		except IndexError:
 			update.message.reply_text('Invalid location.')
 
 
@@ -162,7 +163,7 @@ def check(context):
 	for location in content['response']['data'].values():
 		city = location['name']
 		num = location['counteritems'][0]['val']
-		if city in CITIES and num != 0 and city not in CITIES_AVL:
+		if num != 0 and city not in CITIES_AVL:
 			CITIES_AVL.append(city)
 			message = f'\U0001F6A8 New appointments at {city}: {num}\n'
 			dates = re.findall(r'"c":(\d*),"d":(\d*)', location['counteritems'][0]['val_s'])
@@ -171,7 +172,7 @@ def check(context):
 					day = datetime.utcfromtimestamp(int(date[1])) + timedelta(hours=3)
 					message += f'Appointments on {day.strftime("%d.%m.%Y")}: {date[0]}\n'
 			broadcast(context, message, city, num)
-		elif city in CITIES and num == 0 and city in CITIES_AVL:
+		elif num == 0 and city in CITIES_AVL:
 			CITIES_AVL.remove(city)
 			broadcast(context, f'No appointments left at {city}.', city, num)
 
