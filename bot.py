@@ -9,12 +9,13 @@ from telegram.ext import Updater, CommandHandler, JobQueue, Filters
 from telegram.error import ChatMigrated
 
 LOGFILE = f'log_{datetime.now().strftime("%d%m%y_%H%M%S")}.txt'
+PERSIST_LOG = bool(os.getenv('PERSIST_LOG'))
 TOKEN = os.getenv('BOT_TOKEN')
 USER = os.getenv('TG_USER')
 URL = 'https://countee-impfee.b-cdn.net/api/1.1/de/counters/getAll/_iz_sachsen'
 INTERVAL = 180
 STD_LIMIT = 5
-all_cities = ['Annaberg IZ', 'Belgern IZ', 'Borna IZ', 'Chemnitz IZ', 'Dresden IZ', 'Eich IZ', 'Grimma TIZ', 'Kamenz IZ', 'Leipzig Messe IZ', 'Löbau IZ', 'Mittweida IZ', 'Pirna IZ', 'Plauen TIZ', 'Riesa IZ', 'Zwickau IZ']
+ALL_CITIES = ['Annaberg IZ', 'Belgern IZ', 'Borna IZ', 'Chemnitz IZ', 'Dresden IZ', 'Eich IZ', 'Grimma TIZ', 'Kamenz IZ', 'Leipzig Messe IZ', 'Löbau IZ', 'Mittweida IZ', 'Pirna IZ', 'Plauen TIZ', 'Riesa IZ', 'Zwickau IZ']
 CITIES = ['Dresden IZ', 'Pirna IZ']
 CITIES_AVL = []
 CHATS = {}
@@ -84,8 +85,8 @@ def shutdown(update, context):
 
 
 def persist():
-	with open('chat_ids', 'wb') as chat_ids:
-		pickle.dump(CHATS, chat_ids)
+	with open('bot.data', 'wb') as bot_data:
+		pickle.dump([CITIES_AVL, CHATS, CHATS_WTG], bot_data)
 
 
 def broadcast(context, message, city, count):
@@ -142,8 +143,9 @@ def error(update, context):
 def log(message):
 	log_msg = f'{datetime.now().strftime("%b %d %H:%M:%S")} - {message}'
 	print(log_msg)
-	with open(LOGFILE, 'a') as f:
-		f.write(log_msg + '\n')
+	if PERSIST_LOG:
+		with open(LOGFILE, 'a') as f:
+			f.write(log_msg + '\n')
 
 
 def main():
@@ -151,10 +153,10 @@ def main():
 
 	log(f'Starting bot... Token: {TOKEN}')
 
-	if os.path.exists('chat_ids'):
-		with open('chat_ids', 'rb') as chat_ids:
-			CHATS = pickle.load(chat_ids)
-			log(f'Chats restored: {CHATS}')
+	if os.path.exists('bot.data'):
+		with open('bot.data', 'rb') as bot_data:
+			CITIES_AVL, CHATS, CHATS_WTG = pickle.load(bot_data)
+			log(f'Chats restored: {CHATS}. Waiting chats restored: {CHATS_WTG}. Available cities restored: {CITIES_AVL}')
 
 	updater = Updater(TOKEN)
 
