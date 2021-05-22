@@ -132,7 +132,7 @@ def persist():
 
 def broadcast(context, message, city, count):
 	for chat, settings in CHATS.copy().items():
-		if count >= settings[0] and city in settings[1] or chat in CHATS_WTG[city] and count == 0:
+		if count >= settings[0] and city in settings[1] or count == 0 and city in CHATS_WTG and chat in CHATS_WTG[city]:
 			try:
 				if count == 0:
 					CHATS_WTG[city].remove(chat)
