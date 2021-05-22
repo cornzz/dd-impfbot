@@ -166,7 +166,7 @@ def check(context):
 		if num != 0 and city not in CITIES_AVL:
 			CITIES_AVL.append(city)
 			message = f'\U0001F6A8 New appointments at {city}: {num}\n'
-			dates = re.findall(r'"c":(\d*),"d":(\d*)', location['counteritems'][0]['val_s'])
+			dates = re.findall(r'"c":(\d*),"t":\d*,"d":(\d*)', location['counteritems'][0]['val_s'])
 			for date in dates:
 				if date[0] != '0':
 					day = datetime.utcfromtimestamp(int(date[1])) + timedelta(hours=3)
