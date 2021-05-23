@@ -149,8 +149,8 @@ def broadcast(context, message, city, count):
 				context.bot.sendMessage(new_id, message)
 				if count != 0:
 					CHATS_WTG[city].append(chat)
-			except:
-				log(f'Error sending message to chat {chat}, removing chat id...')
+			except Exception as e:
+				log(f'Error {e} while sending message to chat {chat}, removing chat id...')
 				del CHATS[chat]
 				persist()
 
